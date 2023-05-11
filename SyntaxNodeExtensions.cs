@@ -63,6 +63,40 @@ namespace ZBase.Foundation.SourceGen
             return fileName;
         }
 
+        public static string GetGeneratedSourceFileName(this SyntaxTree syntaxTree, string generatorName, SyntaxNode node, string typeName)
+            => GetGeneratedSourceFileName(syntaxTree, generatorName, node.GetLocation().GetLineSpan().StartLinePosition.Line, typeName);
+
+        public static string GetGeneratedSourceFileName(this SyntaxTree syntaxTree, string generatorName, int salting, string typeName)
+        {
+            var (isSuccess, fileName) = TryGetFileNameWithoutExtension(syntaxTree);
+            var stableHashCode = SourceGenHelpers.GetStableHashCode(syntaxTree.FilePath) & 0x7fffffff;
+
+            var postfix = generatorName.Length > 0 ? $"__{generatorName}" : string.Empty;
+            
+            if (string.IsNullOrWhiteSpace(typeName) == false)
+            {
+                postfix = $"__{typeName}{postfix}";
+            }
+
+            if (isSuccess)
+                fileName = $"{fileName}{postfix}_{stableHashCode}{salting}.g.cs";
+            else
+                fileName = Path.Combine($"{Path.GetRandomFileName()}{postfix}", ".g.cs");
+
+            return fileName;
+        }
+
+        public static string GetGeneratedSourceFileName(this SyntaxTree syntaxTree, string generatorName, string fileName, SyntaxNode node)
+            => GetGeneratedSourceFileName(syntaxTree, generatorName, fileName, node.GetLocation().GetLineSpan().StartLinePosition.Line);
+
+        public static string GetGeneratedSourceFileName(this SyntaxTree syntaxTree, string generatorName, string fileName, int salting = 0)
+        {
+            var stableHashCode = SourceGenHelpers.GetStableHashCode(syntaxTree.FilePath) & 0x7fffffff;
+            var postfix = generatorName.Length > 0 ? $"__{generatorName}" : string.Empty;
+
+            return $"{fileName}{postfix}_{stableHashCode}{salting}.g.cs";
+        }
+
         public static string GetGeneratedSourceFilePath(this SyntaxTree syntaxTree, string assemblyName, string generatorName)
         {
             var fileName = GetGeneratedSourceFileName(syntaxTree, generatorName);
@@ -166,7 +200,7 @@ namespace ZBase.Foundation.SourceGen
 
         public static SyntaxNode NodeAfter(this SyntaxNode node, Func<SyntaxNodeOrToken, bool> predicate)
         {
-            bool nodeFound = false;
+            var nodeFound = false;
             var descendents = node.DescendantNodesAndTokens().ToArray();
 
             for (var i = 0; i < descendents.Count(); ++i)
