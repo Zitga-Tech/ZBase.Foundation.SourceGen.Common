@@ -72,7 +72,7 @@ namespace ZBase.Foundation.SourceGen
             var stableHashCode = SourceGenHelpers.GetStableHashCode(syntaxTree.FilePath) & 0x7fffffff;
 
             var postfix = generatorName.Length > 0 ? $"__{generatorName}" : string.Empty;
-            
+
             if (string.IsNullOrWhiteSpace(typeName) == false)
             {
                 postfix = $"__{typeName}{postfix}";
@@ -109,7 +109,7 @@ namespace ZBase.Foundation.SourceGen
             return $"Temp/GeneratedCode/{assemblyName}";
         }
 
-        private static (bool IsSuccess, string FileName) TryGetFileNameWithoutExtension(SyntaxTree syntaxTree)
+        public static (bool IsSuccess, string FileName) TryGetFileNameWithoutExtension(this SyntaxTree syntaxTree)
         {
             var fileName = Path.GetFileNameWithoutExtension(syntaxTree.FilePath);
             return (IsSuccess: true, fileName);
@@ -120,23 +120,23 @@ namespace ZBase.Foundation.SourceGen
             public override SyntaxTrivia VisitTrivia(SyntaxTrivia trivia)
             {
                 return trivia.Kind() switch {
-                       SyntaxKind.DisabledTextTrivia
-                    or SyntaxKind.PreprocessingMessageTrivia
-                    or SyntaxKind.IfDirectiveTrivia
-                    or SyntaxKind.ElifDirectiveTrivia
-                    or SyntaxKind.ElseDirectiveTrivia
-                    or SyntaxKind.EndIfDirectiveTrivia
-                    or SyntaxKind.RegionDirectiveTrivia
-                    or SyntaxKind.EndRegionDirectiveTrivia
-                    or SyntaxKind.DefineDirectiveTrivia
-                    or SyntaxKind.UndefDirectiveTrivia
-                    or SyntaxKind.ErrorDirectiveTrivia
-                    or SyntaxKind.WarningDirectiveTrivia
-                    or SyntaxKind.PragmaWarningDirectiveTrivia
-                    or SyntaxKind.PragmaChecksumDirectiveTrivia
-                    or SyntaxKind.ReferenceDirectiveTrivia
-                    or SyntaxKind.BadDirectiveTrivia
-                        => default,
+                    SyntaxKind.DisabledTextTrivia
+                 or SyntaxKind.PreprocessingMessageTrivia
+                 or SyntaxKind.IfDirectiveTrivia
+                 or SyntaxKind.ElifDirectiveTrivia
+                 or SyntaxKind.ElseDirectiveTrivia
+                 or SyntaxKind.EndIfDirectiveTrivia
+                 or SyntaxKind.RegionDirectiveTrivia
+                 or SyntaxKind.EndRegionDirectiveTrivia
+                 or SyntaxKind.DefineDirectiveTrivia
+                 or SyntaxKind.UndefDirectiveTrivia
+                 or SyntaxKind.ErrorDirectiveTrivia
+                 or SyntaxKind.WarningDirectiveTrivia
+                 or SyntaxKind.PragmaWarningDirectiveTrivia
+                 or SyntaxKind.PragmaChecksumDirectiveTrivia
+                 or SyntaxKind.ReferenceDirectiveTrivia
+                 or SyntaxKind.BadDirectiveTrivia
+                     => default,
 
                     _ => trivia,
                 };
@@ -378,7 +378,7 @@ namespace ZBase.Foundation.SourceGen
                     {
                         //End of qualified names
                         var typename = qualifiedNameSyntax.Left.ToString();
-                        
+
                         if (typename.StartsWith("global::"))
                             typename = typename.Substring(8);
 
@@ -471,15 +471,41 @@ namespace ZBase.Foundation.SourceGen
         /// <returns></returns>
         public static bool HasAttributeCandidate(this SyntaxNode syntaxNode, string attributeNameSpace, string attributeName)
         {
-            if (syntaxNode.TryGetFirstChildByKind(SyntaxKind.AttributeList, out var fieldAttributeList)
-                && fieldAttributeList.TryGetFirstChildByKind(SyntaxKind.Attribute, out var fieldAttribute))
+            foreach (var attribListCandidate in syntaxNode.ChildNodes())
             {
-                var attribute = fieldAttribute as AttributeSyntax;
-                if (attribute.Name.IsTypeNameCandidate(attributeNameSpace, attributeName))
+                if (attribListCandidate == null || attribListCandidate.IsKind(SyntaxKind.AttributeList) == false)
+                {
+                    continue;
+                }
+
+                foreach (var attribCandidate in attribListCandidate.ChildNodes())
+                {
+                    if (attribCandidate is AttributeSyntax attrib
+                        && attrib.Name.IsTypeNameCandidate(attributeNameSpace, attributeName)
+                    )
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public static bool AnyAttributeCandidate(
+              this SeparatedSyntaxList<BaseTypeSyntax> nodes
+            , string attributeNameSpace
+            , string attributeName
+        )
+        {
+            foreach (var node in nodes)
+            {
+                if (node.HasAttributeCandidate(attributeNameSpace, attributeName))
                 {
                     return true;
                 }
             }
+
             return false;
         }
 
